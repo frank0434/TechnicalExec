@@ -8,11 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-library(data.table)
-library(ggplot2)
-library(magrittr)
-library(caret)
-library(mlbench)
+source("scripts/pkgs.R")
 ```
 
 ```{r}
@@ -90,6 +86,23 @@ pred_l1 <- predict(l1Fit1, test)
 
 postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
 
+## rf is super slow 
+# rfFit1 <- train(Item_Outlet_Sales ~ ., data = train, 
+#                 method = "rf", 
+#                 trControl = fitControl, 
+#                 preProcess = "center")
+# pred_rf <- predict(rfFit1, test)
+
+# postResample(pred = pred_rf, obs = test$Item_Outlet_Sales)
+
+```
+
+```{r}
+length(pred)
+nrow(test)
+pred <- data.frame(pred = pred, obs = test$Item_Outlet_Sales)
+ggplot(pred, aes(obs, pred)) +
+  geom_point() 
 ```
 
 ```{r}
