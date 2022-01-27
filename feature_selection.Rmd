@@ -7,7 +7,9 @@ output: slidy_presentation
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+options(scipen=999)
 source("scripts/pkgs.R")
+source("scripts/functions.R")
 ```
 
 ## R Markdown
@@ -58,10 +60,41 @@ cate_data
 apply(cate_data[, Item_Identifier := NULL], 2, unique)
 ```
 
-### Top selling stores, items
+## The most popular Product
+
+```{r, fig.width=8}
+product_type <- data[, sum(Item_Outlet_Sales), by = .(Item_Type)]
+product_type %>% 
+  ggplot(aes(fct_reorder(Item_Type, V1),V1))+
+  geom_col()+
+  coord_flip() +
+  labs(title = "Overall top saling product types.", 
+       y = "",x = "") +
+  theme_minimal()+
+  theme( title = element_text(size = 18, face = "bold"),
+         axis.text = element_text(size = 14),
+         axis.title = element_text(size = 9, vjust =  "rt"),
+         plot.margin = margin(30, 30, 30, 30), 
+         panel.spacing =  grid::unit(2, "lines"))+
+  scale_y_comma(limits=c(0,3500000)) +
+  geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
+
+
+```
+
+
+
+## The most popular store 
+
+## The most popular Top selling stores, items
+
 
 ```{r}
-options(scipen=999)
+data[,]
+```
+
+
+```{r}
 data%>% 
   ggplot(aes(log(Item_Outlet_Sales)))+
   geom_histogram()
@@ -268,10 +301,3 @@ df_coef <- round(as.matrix(coef(cv.lasso, s=cv.lasso$lambda.min)), 2)
 # See all contributing variables
 df_coef[df_coef[, 1] != 0, ]
 ```
-
-## Slide with Plot
-
-```{r pressure}
-plot(pressure)
-```
-
