@@ -1,0 +1,110 @@
+---
+title: "Untitled"
+author: "Jian(Frank)"
+date: "27/01/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+library(ggplot2)
+library(magrittr)
+library(caret)
+library(mlbench)
+```
+
+```{r}
+data <- fread("Data/BigMart.csv")
+data[, lapply(.SD, function(x) sum(is.na(x)))]
+colnames(data)
+
+```
+## Leave out the item weight for now 
+
+```{r}
+sub <- data[!is.na(Item_Weight)][, Item_Identifier := NULL]
+sub[, V1:=NULL]
+
+# creat dummy variables 
+# ?model.matrix
+model_m <- model.matrix(Item_Outlet_Sales~., data = sub) %>% 
+  as.data.frame()
+model_m_df <- cbind(model_m, sub[,.(Item_Outlet_Sales)])
+
+```
+
+
+# Split data
+```{r}
+
+```
+
+```{r}
+
+set.seed(42)
+trainidx <- createDataPartition(model_m_df$Item_MRP, p = .8,
+                                list = FALSE)
+
+str(trainidx)
+train <- model_m_df[trainidx,]
+test <- model_m_df[-trainidx,]
+colnames(train)
+colnames(test)
+```
+# Parameter tuning 
+
+```{r}
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeated ten times
+                           repeats = 10)
+```
+
+```{r, warning=FALSE}
+set.seed(42)
+lmFit1 <- train(Item_Outlet_Sales ~ ., data = train, 
+                method = "lm", 
+                trControl = fitControl, 
+                preProcess = "center")
+pred <- predict(lmFit1, test)
+lmFit1
+postResample(pred = pred, obs = test$Item_Outlet_Sales)
+
+glmFit1 <- train(Item_Outlet_Sales ~ ., data = train, 
+                method = "glm", 
+                trControl = fitControl, 
+                preProcess = "center")
+pred_glm <- predict(glmFit1, test)
+glmFit1
+postResample(pred = pred_glm, obs = test$Item_Outlet_Sales)
+
+
+l1Fit1 <- train(Item_Outlet_Sales ~ ., data = train, 
+                method = "blassoAveraged", 
+                trControl = fitControl, 
+                preProcess = "center")
+pred_l1 <- predict(l1Fit1, test)
+
+postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
+
+```
+
+```{r}
+set.seed(42)
+# gbmFit1  <- train(Item_Outlet_Sales ~ ., data = train, 
+#                 method = "gbm", 
+#                 trControl = fitControl, 
+#                 preProcess = "center")
+```
+
+#  
+```{r}
+colnames(data)
+lm1 <- lm(log(Item_Outlet_Sales) ~ Item_MRP, data = data)
+summary(lm1)
+
+```
+

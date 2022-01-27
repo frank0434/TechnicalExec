@@ -1,0 +1,274 @@
+---
+title: "Untitled"
+author: "Jian(Frank)"
+date: "27/01/2022"
+output: slidy_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(data.table)
+library(magrittr)
+library(ggplot2)
+```
+
+## R Markdown
+
+This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+
+## Slide with Bullets
+
+- Bullet 1
+- Bullet 2
+- Bullet 3
+
+## Slide with R Output
+
+```{r read data, echo = TRUE}
+data <- fread("Data/BigMart.csv")
+str(data)
+
+summary(data)
+
+library(GGally)
+ggpairs(data[,.(Item_Fat_Content, Item_Outlet_Sales)], 
+        upper = list(continuous = wrap("cor", size = 2.5)), cardinality_threshold = 17)
+```
+
+# Goals:
+-	Build a model to predict the number of sales (Item_Outlet_Sales) using the available features.
+-	Gain insights about the number of sales.
+
+-	Pretend you are presenting the results to an executive level manager of one of our clients.
+
+
+iteam weight has more than 1400 NAs
+Could be leave out first 
+
+item_outlet_sales ~ f(x)
+
+```{r}
+cate_cols <- sapply(data, function(x) {
+  x <- ifelse(is.character(x), 1, 0)
+  x
+  })
+colnames(data)
+catecols_pos <- names(which(cate_cols == 1))
+cate_data <- data[,..catecols_pos]
+cate_data
+apply(cate_data[, Item_Identifier := NULL], 2, unique)
+```
+
+### Top selling stores, items
+
+```{r}
+options(scipen=999)
+data%>% 
+  ggplot(aes(log(Item_Outlet_Sales)))+
+  geom_histogram()
+
+data[Item_Outlet_Sales > 10000]
+
+
+for(i in catecols_pos[-1]){
+  key <- i
+  
+  sums <- data[, .(topsales = sum(Item_Outlet_Sales, na.rm = TRUE)), 
+               by = key
+               ][order(topsales, decreasing = TRUE)] 
+  p <- sums %>% 
+    ggplot(aes(forcats::fct_reorder(sums[[key]], topsales), topsales)) +
+    geom_col() +
+    coord_flip()
+  print(p)
+}
+data[Item_Outlet_Sales < 100]
+```
+
+```{r}
+library(Boruta)
+boruta_output <- Boruta(Item_Outlet_Sales ~ ., data=na.omit(data[, Item_Identifier :=NULL]), doTrace=0)  
+names(boruta_output)
+boruta_output$finalDecision
+boruta_signif <- getSelectedAttributes(boruta_output, withTentative = TRUE)
+print(boruta_signif)  
+roughFixMod <- TentativeRoughFix(boruta_output)
+boruta_signif <- getSelectedAttributes(roughFixMod)
+imps <- attStats(roughFixMod)
+imps2 = imps[imps$decision != 'Rejected', c('meanImp', 'decision')]
+head(imps2[order(-imps2$meanImp), ])  # descending sort
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance")  
+
+```
+
+```{r}
+data %>% 
+  ggplot(aes(Item_MRP, fill = Item_Type))+
+  geom_histogram(binwidth = 1)
+data %>% 
+  ggplot(aes(Item_MRP, fill = Item_Type))+
+  geom_histogram(binwidth = 1)
+
+data %>% 
+  ggplot(aes(Item_MRP, fill = Outlet_Type))+
+  geom_histogram(binwidth = 1)
+
+data %>% 
+  ggplot(aes(Item_MRP, fill = Outlet_Size))+
+  geom_histogram(binwidth = 1)
+
+data %>% 
+  ggplot(aes(Item_MRP, fill = Outlet_Identifier))+
+  geom_histogram(binwidth = 1)
+
+```
+
+```{r}
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Item_Visibility)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Item_Fat_Content)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Outlet_Identifier)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Outlet_Size)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Outlet_Establishment_Year)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales), color = Item_Type)) +
+  geom_point()+
+  geom_smooth(method = "loess", span = 0.5)
+
+data%>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales))) +
+  geom_boxplot()
+  # geom_smooth(method = "loess", span = 0.5)
+```
+
+## select method for feature selection
+
+```{r}
+library(caret)
+set.seed(42)
+rpart <- train(Item_Outlet_Sales ~ ., data=na.omit(data), method = "rpart")
+rpartimp <- varImp(rpart)
+
+rpartimp
+```
+
+```{r}
+data %>% 
+  ggplot(aes(Outlet_Establishment_Year, log(Item_Outlet_Sales), group = Outlet_Establishment_Year)) +
+  geom_boxplot()
+data %>% 
+  ggplot(aes(Outlet_Establishment_Year, Item_Outlet_Sales, group = Outlet_Establishment_Year)) +
+  geom_boxplot()
+
+```
+## Regularized Random Forest (RRF) algorithm.
+```{r}
+set.seed(42)
+rrfMod <- train(Item_Outlet_Sales ~ ., data=na.omit(data), method = "rpart")
+rrfImp <- varImp(rrfMod, scale=F)
+rrfImp
+
+```
+## L1
+
+```{r}
+library(glmnet)
+library(vtreat) # convert categorical variables 
+trainData <- read.csv("Data/BigMart.csv")[-1]
+trainData$Item_Outlet_Sales <- log(trainData$Item_Outlet_Sales)
+transform_design <- vtreat::NumericOutcomeTreatment(
+    var_list = setdiff(colnames(trainData), c('Item_Outlet_Sales')),  # columns to transform
+    outcome_name = 'Item_Outlet_Sales'                        # outcome variable
+)
+
+# the unpack notation is a multiassignment operator
+# see https://winvector.github.io/wrapr/articles/unpack_multiple_assignment.html
+# for more details
+library(wrapr)
+tf  <- vtreat::fit_prepare(transform_design, trainData)
+
+treatment_plan <- tf$treatments
+d_prepared <- tf$cross_frame
+
+
+# get statistics on the variables
+score_frame <- get_score_frame(treatment_plan)
+score_frame[score_frame[['recommended']], 'varName', drop = FALSE]
+
+
+d_prepared['Item_Outlet_Sales_centered'] <- d_prepared$Item_Outlet_Sales - mean(d_prepared$Item_Outlet_Sales)
+
+WVPlots::ScatterHist(
+  d_prepared, 
+  xvar = 'Item_Identifier_catN',
+  yvar = 'Item_Outlet_Sales_centered',
+  smoothmethod = 'identity',
+  estimate_sig = TRUE,
+  title = 'Relationship between xc_catN and y')
+
+score_frame[score_frame$varName == 'Item_Identifier_catN', ]$rsq
+
+model_vars <- score_frame$varName[score_frame$recommended]
+# to use all the variables:
+# model_vars <- score_frame$varName
+
+f <- wrapr::mk_formula('Item_Outlet_Sales', model_vars)
+
+model = lm(f, data = d_prepared)
+
+# now predict
+d_prepared['prediction'] = predict(
+  model,
+  newdata = d_prepared)
+
+# look at the fit (on the training data)
+WVPlots::ScatterHist(
+  d_prepared, 
+  xvar = 'prediction',
+  yvar = 'Item_Outlet_Sales',
+  smoothmethod = 'identity',
+  estimate_sig = TRUE,
+  title = 'Relationship between prediction and Item_Outlet_Sales')
+
+
+
+x <- as.matrix(d_prepared[,-(58:60)]) # all X vars
+y <- log(trainData$Item_Outlet_Sales) # Only Class
+
+# Fit the LASSO model (Lasso: Alpha = 1)
+set.seed(42)
+cv.lasso <- cv.glmnet(x, y, alpha=1, parallel=TRUE, standardize=TRUE, type.measure='auc')
+
+# Results
+plot(cv.lasso)
+cat('Min Lambda: ', cv.lasso$lambda.min, '\n 1Sd Lambda: ', cv.lasso$lambda.1se)
+df_coef <- round(as.matrix(coef(cv.lasso, s=cv.lasso$lambda.min)), 2)
+
+# See all contributing variables
+df_coef[df_coef[, 1] != 0, ]
+```
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
