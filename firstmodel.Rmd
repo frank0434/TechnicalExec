@@ -74,7 +74,7 @@ glmFit1 <- train(Item_Outlet_Sales ~ ., data = train,
                 trControl = fitControl, 
                 preProcess = "center")
 pred_glm <- predict(glmFit1, test)
-glmFit1
+saveRDS(glmFit1, "Data/glmfit1")
 postResample(pred = pred_glm, obs = test$Item_Outlet_Sales)
 
 
@@ -83,7 +83,7 @@ l1Fit1 <- train(Item_Outlet_Sales ~ ., data = train,
                 trControl = fitControl, 
                 preProcess = "center")
 pred_l1 <- predict(l1Fit1, test)
-
+# saveRDS(l1Fit1, "Data/l2fit1")
 postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
 
 ## rf is super slow 

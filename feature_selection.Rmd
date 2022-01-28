@@ -71,7 +71,7 @@ apply(cate_data[, Item_Identifier := NULL], 2, unique)
 product_type <- data[, sum(Item_Outlet_Sales), by = .(Item_Type)]
 product_type %>% 
   ggplot(aes(fct_reorder(Item_Type, V1),V1))+
-  geom_col()+
+  geom_col(fill = corporate_colors[2])+
   coord_flip() +
   labs(title = "Overall Best Selling Product Types", 
        y = "",x = "") +
@@ -90,10 +90,10 @@ product_type %>%
 
 ## The most popular store 
 
-```{r}
-popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Identifier)]
+```{r, fig.width=9}
+popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Type, Outlet_Identifier)]
 popular_store  %>% 
-  ggplot(aes(fct_reorder(Outlet_Identifier, V1),V1))+
+  ggplot(aes(fct_reorder(Outlet_Identifier, V1),V1, fill = Outlet_Type))+
   geom_col()+
   coord_flip() +
   labs(title = "The Most Popular Store", 
@@ -105,15 +105,28 @@ popular_store  %>%
          plot.margin = margin(30, 30, 30, 30), 
          panel.spacing =  grid::unit(2, "lines"))+
   scale_y_comma(limits=c(0,4000000)) +
+  scale_fill_manual(name = "Outlet Type", values = corporate_colors,
+                    guide = guide_legend(reverse = TRUE)) +
   geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
 ```
+## Why store 10 and 19 are so small? 
+```{r}
+data[Outlet_Type %like% 3 ]
+data[Outlet_Identifier %in% c("OUT010", "OUT019")]
+unique(data[,.(Outlet_Identifier, Outlet_Establishment_Year)]) %>% 
+  ggplot(aes(forcats::fct_reorder( Outlet_Identifier, Outlet_Establishment_Year),Outlet_Establishment_Year)) +
+  geom_point()+
+  coord_flip()+
+  scale_x_continuous()
+```
+
 ## Fat content matters?
 
 ```{r, fig.width=9}
 product_type <- data[, sum(Item_Outlet_Sales), by = .(Item_Fat_Content)]
 product_type %>% 
   ggplot(aes(Item_Fat_Content,V1))+
-  geom_col()+
+  geom_col(fill = corporate_colors[2])+
   # coord_flip() +
   labs(title = "Product Fat Content in relation to total sells", 
        y = "",x = "") +
