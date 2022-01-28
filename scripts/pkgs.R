@@ -2,9 +2,9 @@ library(data.table)
 library(magrittr)
 library(ggplot2)
 library(hrbrthemes)
+hrbrthemes::import_roboto_condensed()
 
-
-loadfonts(device = "win")
+# loadfonts(device = "win")
 library(forcats)
 library(GGally)
 
