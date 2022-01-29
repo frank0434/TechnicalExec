@@ -65,13 +65,56 @@ cate_data
 apply(cate_data[, Item_Identifier := NULL], 2, unique)
 ```
 
-## The most popular Product
 
-```{r, fig.width=8}
-product_type <- data[, sum(Item_Outlet_Sales), by = .(Item_Type)]
+## The top 10 popular Product
+```{r}
+product_type <- data[, sum(Item_Outlet_Sales), 
+                     by = .(Item_Type, Item_Fat_Content, Item_Identifier)
+                     ][1:30]
+product_type$Item_Type %>% 
+  unique()
 product_type %>% 
-  ggplot(aes(fct_reorder(Item_Type, V1),V1))+
-  geom_col(fill = corporate_colors[2])+
+  ggplot(aes(fct_reorder(Item_Identifier, V1),V1, color = Item_Fat_Content, shape = Item_Type))+
+  geom_point()+
+  coord_flip() +
+  labs(title = "Top 30 Best Selling Products", 
+       y = "",x = "") +
+  theme_minimal()+
+  theme( title = element_text(size = 18, face = "bold"),
+         axis.text = element_text(size = 13),
+         axis.title = element_text(size = 9, vjust =  "rt"),
+         plot.margin = margin(30, 30, 30, 30), 
+         panel.spacing =  grid::unit(2, "lines"))+
+  scale_y_comma(limits=c(0,50000)) +
+  geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=500) 
+
+product_type[,.N, by =.(Item_Fat_Content)]
+product_type[Item_Fat_Content == "Regular"]$Item_Identifier
+product_type[(Item_Fat_Content == "Regular") &
+               (!Item_Type %like% "Fruits and ")][order(V1,decreasing = TRUE)]
+
+```
+
+low fat products are popular. 
+In the top 30 selling products, top 3 are low fat products. 
+16 out of 30 are still regular products (2 products are fruit and vegetables).
+Provide alternative low fat products for the rest of 14 regular products may boost sales?
+
+## The most popular Product Type
+
+
+```{r, fig.width=9}
+product_type <- data[, sum(Item_Outlet_Sales), by = .(Item_Type, Item_Fat_Content)
+                     ][, total := sum(V1), by = .(Item_Type)
+                       ][, pct := round(V1/total, digits = 2)]
+sales_rank <- data[, sum(Item_Outlet_Sales), by =.(Item_Type)
+                   ][order(V1, decreasing = TRUE)]
+product_type <- product_type[sales_rank, on = "Item_Type"]
+
+product_type$Item_Type <- factor(product_type$Item_Type, levels = rev(sales_rank$Item_Type))
+product_type %>% 
+  ggplot(aes(Item_Type,V1, fill = Item_Fat_Content))+
+  geom_bar(stat = "identity", position = "stack")+
   coord_flip() +
   labs(title = "Overall Best Selling Product Types", 
        y = "",x = "") +
@@ -80,9 +123,13 @@ product_type %>%
          axis.text = element_text(size = 13),
          axis.title = element_text(size = 9, vjust =  "rt"),
          plot.margin = margin(30, 30, 30, 30), 
-         panel.spacing =  grid::unit(2, "lines"))+
+         panel.spacing =  grid::unit(2, "lines"),
+         legend.position = "bottom")+
   scale_y_comma(limits=c(0,3500000)) +
-  geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
+  scale_fill_manual(name = "Fat Content", 
+                    values =  corporate_colors[1:2],
+                    guide = guide_legend(reverse = TRUE)) +
+  geom_text(aes(y = i.V1 + 200000 , label= scales::comma(i.V1)))
 
 
 ```
@@ -98,27 +145,82 @@ popular_store  %>%
   coord_flip() +
   labs(title = "The Most Popular Store", 
        y = "",x = "") +
-  theme_minimal()+
-  theme( title = element_text(size = 18, face = "bold"),
-         axis.text = element_text(size = 13),
-         axis.title = element_text(size = 9, vjust =  "rt"),
-         plot.margin = margin(30, 30, 30, 30), 
-         panel.spacing =  grid::unit(2, "lines"))+
+  min_theme()+
   scale_y_comma(limits=c(0,4000000)) +
   scale_fill_manual(name = "Outlet Type", values = corporate_colors,
                     guide = guide_legend(reverse = TRUE)) +
   geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
 ```
-## Why store 10 and 19 are so small? 
+## Why store 10 and 19 are so small on sales? 
 ```{r}
 data[Outlet_Type %like% 3 ]
-data[Outlet_Identifier %in% c("OUT010", "OUT019")]
-unique(data[,.(Outlet_Identifier, Outlet_Establishment_Year)]) %>% 
-  ggplot(aes(forcats::fct_reorder( Outlet_Identifier, Outlet_Establishment_Year),Outlet_Establishment_Year)) +
-  geom_point()+
-  coord_flip()+
-  scale_x_continuous()
+data[Outlet_Identifier %in% c("OUT010", "OUT019")]$Outlet_Type %>% unique()
+
+unique(data[,.(Outlet_Identifier, Outlet_Establishment_Year, Outlet_Type, 
+               Outlet_Location_Type = as.character(Outlet_Location_Type))]) %>% 
+  ggplot(aes(forcats::fct_reorder(Outlet_Identifier, Outlet_Establishment_Year, .desc = TRUE),
+             Outlet_Establishment_Year, color = Outlet_Type, shape = Outlet_Location_Type)) +
+  geom_point(size = 3)+
+  coord_flip() +
+  scale_y_continuous(position = "right") +
+  min_theme() +
+  labs(x = "Outlet Identifier", 
+       y = "Establishment Year") +
+  scale_color_manual(name = "Outlet Type", values = corporate_colors,
+                    guide = guide_legend(reverse = TRUE))
+  
 ```
+OUT010 and 019 are Grocery Stores 
+
+## Does Location affect sales?
+```{r}
+
+popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Location_Type)]
+popular_store[, Outlet_Location_Type := as.character(Outlet_Location_Type)]  %>% 
+  ggplot(aes(fct_reorder(Outlet_Location_Type, V1),V1, fill = Outlet_Location_Type))+
+  geom_col()+
+  coord_flip() +
+  labs(title = "The Most Popular Store", 
+       y = "",x = "") +
+  min_theme()+
+  scale_y_comma(limits=c(0,8000000)) +
+  scale_fill_manual(name = "Outlet  Location Type", values = corporate_colors,
+                    guide = guide_legend(reverse = TRUE)) +
+  geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
+
+
+data[, .(Item_Outlet_Sales,Outlet_Location_Type)] %>% 
+  ggplot(aes(Outlet_Location_Type, Item_Outlet_Sales, group = Outlet_Location_Type))+
+    geom_jitter(alpha = .3)+
+  geom_boxplot()
+
+
+```
+The **long tail* created the skewness, what are these? 
+
+```{r, fig.height= 10, fig.width= 8}
+outliner_items <- data[Item_Outlet_Sales > 5000]
+
+outliner_items %>% 
+  ggplot(aes( Item_MRP, Item_Outlet_Sales, color = Item_Visibility)) +
+  geom_point() +
+  facet_grid(  Item_Fat_Content + Item_Type ~ Outlet_Size + Outlet_Type + Outlet_Identifier)
+```
+
+
+
+```{r}
+cat_cols <- which(sapply(data, is.character) == 1)
+
+unique(data[, ..cat_cols])
+
+data %>% 
+  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Item_Type)) +
+  geom_jitter(alpha = 0.8) +
+  facet_wrap(~ Item_Fat_Content)
+```
+
+
 
 ## Fat content matters?
 
