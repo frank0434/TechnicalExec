@@ -32,12 +32,6 @@ data <- fread("Data/BigMart.csv")
 data[, Item_Fat_Content:=ifelse(Item_Fat_Content %in% c("low fat", "LF", "Low Fat"),
                                 "Low Fat", 
                                 ifelse(Item_Fat_Content == "reg", "Regular", Item_Fat_Content))]
-str(data)
-
-summary(data)
-
-ggpairs(data[,.(Item_Fat_Content, Item_Outlet_Sales)], 
-        upper = list(continuous = wrap("cor", size = 2.5)), cardinality_threshold = 17)
 ```
 
 # Goals:
@@ -130,6 +124,22 @@ product_type %>%
                     values =  corporate_colors[1:2],
                     guide = guide_legend(reverse = TRUE)) +
   geom_text(aes(y = i.V1 + 200000 , label= scales::comma(i.V1)))
+
+
+```
+
+```{r}
+data[, sum(Item_Outlet_Sales)/sum(Item_MRP), by = .(Item_Identifier, Outlet_Identifier)] %>% 
+  ggplot(aes(V1, fill = Outlet_Identifier))+
+  geom_histogram()
+data%>% 
+  ggplot(aes( Item_Outlet_Sales/Item_MRP,fill= Item_Type))+
+  geom_histogram()
+
+data%>% 
+  ggplot(aes(Item_Outlet_Sales, Item_Outlet_Sales/Item_MRP, color = Outlet_Type))+
+  geom_point() +
+  geom_smooth(method = "loess")
 
 
 ```
@@ -230,7 +240,7 @@ outliner_items %>%
 outliner_items <- data[!Outlet_Type %like% "Gro"]
 
 outliner_items %>% 
-  ggplot(aes( Item_MRP, Item_Outlet_Sales, color = Item_Type)) +
+  ggplot(aes( Item_MRP, Item_Outlet_Sales / Item_MRP, color = Item_Type)) +
   geom_jitter()
 outliner_items %>% 
   ggplot(aes(Item_MRP)) +
