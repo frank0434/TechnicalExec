@@ -22,7 +22,7 @@ min_theme <- function(){
   theme_minimal()+
     theme( title = element_text(size = 18, face = "bold"),
            axis.text = element_text(size = 13),
-           axis.title = element_text(size = 9, vjust =  "rt"),
+           axis.title = element_text(size = 16, vjust =  "rt"),
            plot.margin = margin(30, 30, 30, 30), 
            panel.spacing =  grid::unit(2, "lines"))
 }
