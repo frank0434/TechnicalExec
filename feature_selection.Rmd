@@ -151,6 +151,25 @@ popular_store  %>%
                     guide = guide_legend(reverse = TRUE)) +
   geom_text(aes(label=scales::comma(V1)), hjust=0, nudge_y=5000) 
 ```
+
+## outlet type sales generation 
+
+```{r}
+popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Type)
+                      ][, pct := paste0(round(V1/sum(V1), digits = 2) * 100, "%")]
+popular_store  %>% 
+  ggplot(aes(fct_reorder(Outlet_Type, V1),V1))+
+  geom_col(fill = corporate_colors[2])+
+  coord_flip() +
+  labs(title = "The Most Popular Outlet Type", 
+       y = "",x = "") +
+  min_theme()+
+  scale_y_comma(limits=c(0,max(popular_store$V1) * 1.2)) +
+  scale_fill_manual(name = "Outlet Type", values = corporate_colors,
+                    guide = guide_legend(reverse = TRUE)) +
+  geom_text(aes(label=pct), hjust=0, nudge_y=5000) 
+```
+
 ## Why store 10 and 19 are so small on sales? 
 ```{r}
 data[Outlet_Type %like% 3 ]
@@ -198,15 +217,26 @@ data[, .(Item_Outlet_Sales,Outlet_Location_Type)] %>%
 ```
 The **long tail* created the skewness, what are these? 
 
-```{r, fig.height= 10, fig.width= 8}
-outliner_items <- data[Item_Outlet_Sales > 5000]
+```{r, fig.height= 15, fig.width= 8}
+outliner_items <- data
 
 outliner_items %>% 
   ggplot(aes( Item_MRP, Item_Outlet_Sales, color = Item_Visibility)) +
-  geom_point() +
+  geom_jitter() +
   facet_grid(  Item_Fat_Content + Item_Type ~ Outlet_Size + Outlet_Type + Outlet_Identifier)
 ```
+## what if filter out gocery stores?
+```{r, fig.height=7}
+outliner_items <- data[!Outlet_Type %like% "Gro"]
 
+outliner_items %>% 
+  ggplot(aes( Item_MRP, Item_Outlet_Sales, color = Item_Type)) +
+  geom_jitter()
+outliner_items %>% 
+  ggplot(aes(Item_MRP)) +
+  geom_histogram(binwidth = 2)
+
+```
 
 
 ```{r}
@@ -215,12 +245,33 @@ cat_cols <- which(sapply(data, is.character) == 1)
 unique(data[, ..cat_cols])
 
 data %>% 
-  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Item_Type)) +
+  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Outlet_Type)) +
   geom_jitter(alpha = 0.8) +
-  facet_wrap(~ Item_Fat_Content)
+  geom_smooth(method = "loess") +
+  scale_color_manual(values = corporate_colors)
+
+data %>% 
+  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Outlet_Type)) +
+  geom_boxplot(alpha = 0.8) +
+  # geom_smooth(method = "loess") +
+  scale_color_manual(values = corporate_colors) +
+  min_theme()
+  
 ```
 
+**Type1 and 2 can be combined into one class. **
 
+```{r}
+
+```
+
+## Item visibility
+```{r}
+range(data$Item_Visibility)
+data %>% 
+  ggplot(aes(Item_Visibility)) +
+  geom_histogram(binwidth = 0.001)
+```
 
 ## Fat content matters?
 
@@ -273,6 +324,17 @@ for(i in catecols_pos[-1]){
 }
 data[Item_Outlet_Sales < 100]
 ```
+ Super market type 1 generate lots of sales 
+ 
+```{r}
+data[Outlet_Type %like% "Type1"]
+```
+ 
+```{r}
+unique(data[,.(Outlet_Size, Outlet_Type)])
+```
+
+
 
 ```{r}
 library(Boruta)
