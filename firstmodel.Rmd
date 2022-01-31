@@ -9,119 +9,35 @@ output: html_document
 
 knitr::opts_chunk$set(echo = TRUE)
 source("scripts/pkgs.R")
+source("scripts/functions.R")
+
+```
+
+```{r}
+data <- fread("Data/cleaned.csv")
 
 ```
 
 
 ```{r}
-data <- fread("Data/lmtestrs.csv")
-data %>% 
-  melt.data.table(variable.factor = FALSE) %>% 
-  ggplot(aes(value, fill = variable)) +
-  geom_histogram( position = position_dodge(),binwidth = 300, bins = 30) +
-  min_theme() +
-  theme(legend.position = c(.9,.85),
-        legend.background = element_rect(colour = "black"),
-        legend.box.background = element_rect(colour = "white"),
-        legend.title = element_blank(),
-        title = element_text(size = 18, face = "bold"),
-         axis.text = element_text(size = 13),
-         axis.title = element_text(size = 16, vjust =  "rt"),
-         plot.margin = margin(30, 30, 30, 30), 
-         panel.spacing =  grid::unit(2, "lines"))+
-  labs(x = "Item Outlet Sales", 
-       y = "Distribution",
-       title = "True Sales vs Predicted Sales Distribution Comparision",
-       subtitle = "Linear Regression Model")+
-      scale_fill_manual(name = '', values = corporate_colors[c(2, 4)], labels = c("True Sales", "Predict Sales") )
+data[, sum(Item_Outlet_Sales)/sum(Item_MRP), by = .(Item_Identifier, Outlet_Identifier)] %>% 
+  ggplot(aes(V1, fill = Outlet_Identifier))+
+  geom_histogram()
+data%>% 
+  ggplot(aes( Item_Outlet_Sales/Item_MRP,fill= Item_Type))+
+  geom_histogram()
 
-
-ggsave("Reports/true_pred.png", width = 9, height = 6, dpi = 300)
+data%>% 
+  ggplot(aes(Item_Outlet_Sales, Item_Outlet_Sales/Item_MRP, color = Outlet_Type))+
+  geom_point() +
+  geom_smooth(method = "loess")
 
 
 ```
 
 
 ```{r}
-baselines <- fread("Data/baselines.csv")
-rank =baselines[, mean(r2), by = .(names)
-          ][order(V1, decreasing = T)][, rank := 1:.N]
 
-baselines$names <- factor(baselines$names, levels = rank$names)
-baselines %>% 
-  ggplot(aes(names, r2)) +
-  geom_boxplot() +
-  min_theme() +
-  theme(title = element_text(size = 18, face = "bold"),
-        axis.text = element_text(size = 13), 
-        plot.caption = element_text(size = 12),
-        axis.title = element_text(size = 16, vjust =  "rt"),
-        plot.margin = margin(30, 30, 30, 30), 
-        panel.spacing =  grid::unit(2, "lines"))+
-  labs(x = "Models", 
-       y = "Coefficient of determination",
-       title = "Six Models Performance Evaluation",
-       caption = "Boxplot resulted from 10 fold cross validation ")
-
-
-
-ggsave("Reports/modelseletion.png", width = 9, height = 6, dpi = 300)
-
-  
-```
-## visual glm features
-
-```{r}
-glm <- fread("Data/glm.csv")
-glm <- glm %>% 
-  melt.data.table(variable.factor = FALSE)
-glm[value > 0.01][order(value, decreasing = T)][1:5] %>% 
-  ggplot(aes(fct_reorder(variable, value),value)) +
-  geom_col(fill = corporate_colors) +
-  coord_flip() +
-  min_theme()+
-  labs(x = "Features", 
-       y = "Coefficient",
-       title = "Top Five Predictors",
-       subtitle = "Generalised Linear Model")+
-      scale_fill_manual(name = '', values = corporate_colors[c(2, 4)], labels = c("True Sales", "Predict Sales") )
-
-
-ggsave("Reports/glmfeatureranks.png", width = 9, height = 6, dpi = 300)
-```
-
-## visual rf grid search 
-
-```{r}
-top10_rf_para <- fread("Data/rf_gridsearch.csv")
-cols <- colnames(top10_rf_para)
-top10_rf_para[, para_combi := paste(bootstrap,max_depth,max_features,n_estimators, sep = "\n")]
-top10_rf_para %>% 
-  ggplot(aes(rank_test_score, mean_test_score)) +
-  geom_line()
-  
-```
-```{r}
-topfeatures <- fread("Data/rf_featureimpt.csv")
-
-topfeatures[value > 0.001] %>% 
-  ggplot(aes(forcats::fct_reorder(V1, value),value)) +
-  geom_col(fill = corporate_colors[c(5, 5:1)]) +
-  coord_flip() +
-  min_theme()+
-  labs(x = "Features", 
-       y = "Importance",
-       title = "Top Five Predictors",
-       subtitle = "Random Forest")
-
-
-ggsave("Reports/rffeatureranks.png", width = 9, height = 6, dpi = 300)
-
-```
-
-
-```{r}
-data <- fread("Data/BigMart.csv")
 data[, lapply(.SD, function(x) sum(is.na(x)))]
 colnames(data)
 
@@ -142,9 +58,6 @@ model_m_df <- cbind(model_m, sub[,.(Item_Outlet_Sales)])
 
 
 # Split data
-```{r}
-
-```
 
 ```{r}
 
@@ -168,7 +81,7 @@ fitControl <- trainControl(## 10-fold CV
                            repeats = 10)
 ```
 
-```{r, warning=FALSE}
+```{r, eval=FALSE, warning=FALSE}
 set.seed(42)
 lmFit1 <- train(Item_Outlet_Sales ~ ., data = train, 
                 method = "lm", 
@@ -187,10 +100,10 @@ saveRDS(glmFit1, "Data/glmfit1")
 postResample(pred = pred_glm, obs = test$Item_Outlet_Sales)
 
 
-l1Fit1 <- train(Item_Outlet_Sales ~ ., data = train, 
-                method = "blassoAveraged", 
-                trControl = fitControl, 
-                preProcess = "center")
+# l1Fit1 <- train(Item_Outlet_Sales ~ ., data = train, 
+#                 method = "blassoAveraged", 
+#                 trControl = fitControl, 
+#                 preProcess = "center") # extremely slow
 # pred_l1 <- predict(l1Fit1, test)
 # saveRDS(l1Fit1, "Data/l2fit1")
 postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
@@ -206,7 +119,7 @@ postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 length(pred)
 nrow(test)
 pred <- data.frame(pred = pred, obs = test$Item_Outlet_Sales)
