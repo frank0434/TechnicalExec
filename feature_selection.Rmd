@@ -188,7 +188,8 @@ data %>%
 
 ```{r}
 popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Type)
-                      ][, pct := paste0(round(V1/sum(V1), digits = 2) * 100, "%")]
+                      ][, pct := round(V1/sum(V1), digits = 2)
+                        ][, label := paste0(pct * 100,"%")]
 popular_store  %>% 
   ggplot(aes(fct_reorder(Outlet_Type, V1),V1))+
   geom_col(fill = corporate_colors[2])+
@@ -199,11 +200,10 @@ popular_store  %>%
   scale_y_comma(limits=c(0,max(popular_store$V1) * 1.2)) +
   scale_fill_manual(name = "Outlet Type", values = corporate_colors,
                     guide = guide_legend(reverse = TRUE)) +
-  geom_text(aes(label=pct), hjust=0, nudge_y=5000) 
+  geom_text(aes(label=label), hjust=0, nudge_y=50000) 
+
 ggsave("Reports/typesalespct.png", dpi = 300)
 
-(popular_store$V1[1] + popular_store$V1[2]) * 0.01/sum(popular_store$V1)
-(popular_store$V1[4] * 0.01)
 ```
 
 
@@ -238,8 +238,15 @@ ggsave("Reports/true_pred.png", width = 9, height = 6, dpi = 300)
 
 ```{r}
 baselines <- fread("Data/baselines.csv")
+
+
+model_nms <- c("Random\nForest", "Generalised\nLinear\nModel",
+               "Lasso", "Bayesian\nRidge", "Linear\nModel",
+               "Ridge")
 rank =baselines[, mean(r2), by = .(names)
-          ][order(V1, decreasing = T)][, rank := 1:.N]
+                ][order(V1, decreasing = T)
+                  ][, rank := 1:.N
+                    ][, mod_labs := model_nms]
 
 baselines$names <- factor(baselines$names, levels = rank$names)
 baselines %>% 
@@ -252,14 +259,16 @@ baselines %>%
         axis.title = element_text(size = 16, vjust =  "rt"),
         plot.margin = margin(30, 30, 30, 30), 
         panel.spacing =  grid::unit(2, "lines"))+
+  scale_y_continuous(limits = c(0.48,0.65))+
+  scale_x_discrete(labels = rank$mod_labs)+
   labs(x = "Models", 
-       y = "Coefficient of determination",
+       y = "Model performance scores",
        title = "Six Models Performance Evaluation",
        caption = "Boxplot resulted from 10 fold cross validation ")
 
 
 
-ggsave("Reports/modelseletion.png", width = 9, height = 6, dpi = 300)
+ggsave("Reports/modelseletion.png", width = 7, height = 6, dpi = 300)
 
   
 ```
