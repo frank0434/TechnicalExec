@@ -23,10 +23,21 @@ Item_Outlet_Sales ( sales of the product in the particular store).
 -	Build a model to predict the number of sales (Item_Outlet_Sales) using the available features.
 -	Gain insights about the number of sales.
 
-# Tools and presentation:
+# Exploratroy analysis 
 
--	You can use R or Python
--	Presentation will be 15 minutes + discussion afterwards. 
--	Pretend you are presenting the results to an executive level manager of one of our clients.
--	Feel free to present the results in whatever format you deem most appropriate. 
--	Please send your r/python code through in a separate file before the presentation.
+`feature_selection.Rmd` contains EDA and visualisation for the slides. 
+
+# Model development and improvement 
+
+`model.ipynb` has the whole workflow to do:  
+1. Data cleaning  
+2. Encoding  
+3. Stanarisation  
+4. Baseline model (lm)  
+5. Model selection  
+6. Light weight model tuning   
+
+# Environment for R stored in the `renv.lock` 
+
+# Python environment (Windows Anaconda) is captured `env.txt`
+
