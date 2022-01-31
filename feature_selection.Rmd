@@ -2,7 +2,7 @@
 title: "Untitled"
 author: "Jian(Frank)"
 date: "27/01/2022"
-output: slidy_presentation
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -12,26 +12,14 @@ source("scripts/pkgs.R")
 source("scripts/functions.R")
 ```
 
-## R Markdown
-
-This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
-
-## Slide with Bullets
-
-- Bullet 1
-- Bullet 2
-- Bullet 3
-
 ## Slide with R Output
 
 ```{r read data, echo = TRUE}
-data <- fread("Data/BigMart.csv")
+data <- fread("Data/cleaned.csv")
 # clean data
-data[, Item_Fat_Content:=ifelse(Item_Fat_Content %in% c("low fat", "LF", "Low Fat"),
-                                "Low Fat", 
-                                ifelse(Item_Fat_Content == "reg", "Regular", Item_Fat_Content))]
+# data[, Item_Fat_Content:=ifelse(Item_Fat_Content %in% c("low fat", "LF", "Low Fat"),
+#                                 "Low Fat", 
+#                                 ifelse(Item_Fat_Content == "reg", "Regular", Item_Fat_Content))]
 
 ```
 
@@ -66,8 +54,7 @@ Outlet_size have null values.
 product_type <- data[, sum(Item_Outlet_Sales), 
                      by = .(Item_Fat_Content, Item_Identifier)
                      ][1:10]
-product_type$Item_Type %>% 
-  unique()
+
 product_type %>% 
   ggplot(aes(fct_reorder(Item_Identifier, V1),V1, fill = Item_Fat_Content))+
   geom_col()+
@@ -130,21 +117,6 @@ ggsave("Reports/topproducttypes.png", width = 9, height = 6, dpi = 300)
 
 ```
 
-```{r}
-data[, sum(Item_Outlet_Sales)/sum(Item_MRP), by = .(Item_Identifier, Outlet_Identifier)] %>% 
-  ggplot(aes(V1, fill = Outlet_Identifier))+
-  geom_histogram()
-data%>% 
-  ggplot(aes( Item_Outlet_Sales/Item_MRP,fill= Item_Type))+
-  geom_histogram()
-
-data%>% 
-  ggplot(aes(Item_Outlet_Sales, Item_Outlet_Sales/Item_MRP, color = Outlet_Type))+
-  geom_point() +
-  geom_smooth(method = "loess")
-
-
-```
 
 
 ## The most popular store 
@@ -168,6 +140,74 @@ popular_store  %>%
 ggsave("Reports/storesales.png", width = 9, height = 6, dpi = 300)
 ```
 
+
+## pattern between item mpr and log10 sales
+
+
+```{r}
+data %>% 
+  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales),
+             color = Outlet_Type)) +
+  geom_jitter(alpha = 0.3) +
+  geom_boxplot(alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, size = 3) +
+  scale_color_manual(name = "Outlet Type",values = corporate_colors)+
+  min_theme()+
+  theme( title = element_text(size = 18, face = "bold"),
+         axis.text = element_text(size = 13),
+         axis.title = element_text(size = 16, vjust =  "rt"),
+         plot.margin = margin(30, 30, 30, 30), 
+         panel.spacing =  grid::unit(2, "lines"))+
+  labs(x = "Maximum Retail Price", 
+       y = "Item Outlet Sales (log10)")
+
+ggsave("Reports/mrpvsoutletsales.png", width = 9, height = 6, dpi = 300)
+
+
+```
+
+
+```{r}
+cat_cols <- which(sapply(data, is.character) == 1)
+
+unique(data[, ..cat_cols])
+
+
+data %>% 
+  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Outlet_Type)) +
+  geom_boxplot(alpha = 0.8) +
+  # geom_smooth(method = "loess") +
+  scale_color_manual(values = corporate_colors) +
+  min_theme()
+  
+```
+```{r}
+lmfit <- lm(Item_)
+```
+
+**Type1 and 2 can be combined into one class. **
+
+```{r}
+
+```
+
+
+```{r}
+data[, sum(Item_Outlet_Sales)/sum(Item_MRP), by = .(Item_Identifier, Outlet_Identifier)] %>% 
+  ggplot(aes(V1, fill = Outlet_Identifier))+
+  geom_histogram()
+data%>% 
+  ggplot(aes( Item_Outlet_Sales/Item_MRP,fill= Item_Type))+
+  geom_histogram()
+
+data%>% 
+  ggplot(aes(Item_Outlet_Sales, Item_Outlet_Sales/Item_MRP, color = Outlet_Type))+
+  geom_point() +
+  geom_smooth(method = "loess")
+
+
+```
+
 ## outlet type sales generation 
 
 ```{r}
@@ -184,6 +224,10 @@ popular_store  %>%
   scale_fill_manual(name = "Outlet Type", values = corporate_colors,
                     guide = guide_legend(reverse = TRUE)) +
   geom_text(aes(label=pct), hjust=0, nudge_y=5000) 
+ggsave("Reports/typesalespct.png", dpi = 300)
+
+(popular_store$V1[1] + popular_store$V1[2]) * 0.01/sum(popular_store$V1)
+(popular_store$V1[4] * 0.01)
 ```
 
 ## Why store 10 and 19 are so small on sales? 
@@ -256,56 +300,6 @@ outliner_items %>%
 
 ```
 
-## pattern between item mpr and log10 sales
-
-
-```{r}
-data %>% 
-  ggplot(aes(Item_MRP, log10(Item_Outlet_Sales),
-             color = Outlet_Type)) +
-  geom_jitter(alpha = 0.3) +
-  geom_boxplot(alpha = 0.5) +
-  geom_smooth(method = "loess", se = FALSE, size = 3) +
-  scale_color_manual(name = "Outlet Type",values = corporate_colors)+
-  min_theme()+
-  theme( title = element_text(size = 18, face = "bold"),
-         axis.text = element_text(size = 13),
-         axis.title = element_text(size = 16, vjust =  "rt"),
-         plot.margin = margin(30, 30, 30, 30), 
-         panel.spacing =  grid::unit(2, "lines"))+
-  labs(x = "Maximum Retail Price", 
-       y = "Item Outlet Sales (log10)")
-
-ggsave("Reports/mrpvsoutletsales.png", width = 9, height = 6, dpi = 300)
-
-
-```
-
-
-```{r}
-cat_cols <- which(sapply(data, is.character) == 1)
-
-unique(data[, ..cat_cols])
-
-
-data %>% 
-  ggplot(aes(Item_MRP, Item_Outlet_Sales, color = Outlet_Type)) +
-  geom_boxplot(alpha = 0.8) +
-  # geom_smooth(method = "loess") +
-  scale_color_manual(values = corporate_colors) +
-  min_theme()
-  
-```
-```{r}
-lmfit <- lm(Item_)
-```
-
-**Type1 and 2 can be combined into one class. **
-
-```{r}
-
-```
-
 ## Item visibility
 ```{r}
 range(data$Item_Visibility)
@@ -369,22 +363,20 @@ for(i in catecols_pos[-1]){
 data[Item_Outlet_Sales < 100]
 ```
  Super market type 1 generate lots of sales 
- 
-```{r}
-data[Outlet_Type %like% "Type1"]
-```
- 
-```{r}
-unique(data[,.(Outlet_Size, Outlet_Type)])
-```
 
 
+## Boruta pkg can do feature selection 
 
 ```{r}
 library(Boruta)
-boruta_output <- Boruta(Item_Outlet_Sales ~ ., data=na.omit(data[, Item_Identifier :=NULL]), doTrace=0)  
+
+boruta_output <- Boruta(Item_Outlet_Sales ~ ., 
+                        data=na.omit(data[, Item_Identifier :=NULL]), doTrace=0)  
+
 names(boruta_output)
+
 boruta_output$finalDecision
+
 boruta_signif <- getSelectedAttributes(boruta_output, withTentative = TRUE)
 print(boruta_signif)  
 roughFixMod <- TentativeRoughFix(boruta_output)
@@ -513,12 +505,12 @@ score_frame <- get_score_frame(treatment_plan)
 score_frame[score_frame[['recommended']], 'varName', drop = FALSE]
 
 
-d_prepared['Item_Outlet_Sales_centered'] <- d_prepared$Item_Outlet_Sales - mean(d_prepared$Item_Outlet_Sales)
+# d_prepared['Item_Outlet_Sales_centered'] <- d_prepared$Item_Outlet_Sales - mean(d_prepared$Item_Outlet_Sales)
 
 WVPlots::ScatterHist(
   d_prepared, 
   xvar = 'Item_Identifier_catN',
-  yvar = 'Item_Outlet_Sales_centered',
+  yvar = 'Item_Outlet_Sales',
   smoothmethod = 'identity',
   estimate_sig = TRUE,
   title = 'Relationship between xc_catN and y')
@@ -546,8 +538,6 @@ WVPlots::ScatterHist(
   smoothmethod = 'identity',
   estimate_sig = TRUE,
   title = 'Relationship between prediction and Item_Outlet_Sales')
-
-
 
 x <- as.matrix(d_prepared[,-(58:60)]) # all X vars
 y <- log(trainData$Item_Outlet_Sales) # Only Class
