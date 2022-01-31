@@ -12,7 +12,7 @@ source("scripts/pkgs.R")
 source("scripts/functions.R")
 ```
 
-## Slide with R Output
+## Import data 
 
 ```{r read data, echo = TRUE}
 data <- fread("Data/cleaned.csv")
@@ -30,8 +30,6 @@ data <- fread("Data/cleaned.csv")
 -	Pretend you are presenting the results to an executive level manager of one of our clients.
 
 
-iteam weight has more than 1400 NAs
-Could be leave out first 
 
 item_outlet_sales ~ f(x)
 
@@ -187,26 +185,7 @@ lmfit <- lm(Item_)
 
 **Type1 and 2 can be combined into one class. **
 
-```{r}
 
-```
-
-
-```{r}
-data[, sum(Item_Outlet_Sales)/sum(Item_MRP), by = .(Item_Identifier, Outlet_Identifier)] %>% 
-  ggplot(aes(V1, fill = Outlet_Identifier))+
-  geom_histogram()
-data%>% 
-  ggplot(aes( Item_Outlet_Sales/Item_MRP,fill= Item_Type))+
-  geom_histogram()
-
-data%>% 
-  ggplot(aes(Item_Outlet_Sales, Item_Outlet_Sales/Item_MRP, color = Outlet_Type))+
-  geom_point() +
-  geom_smooth(method = "loess")
-
-
-```
 
 ## outlet type sales generation 
 
@@ -228,6 +207,114 @@ ggsave("Reports/typesalespct.png", dpi = 300)
 
 (popular_store$V1[1] + popular_store$V1[2]) * 0.01/sum(popular_store$V1)
 (popular_store$V1[4] * 0.01)
+```
+
+
+```{r}
+data <- fread("Data/lmtestrs.csv")
+data %>% 
+  melt.data.table(variable.factor = FALSE) %>% 
+  ggplot(aes(value, fill = variable)) +
+  geom_histogram( position = position_dodge(),binwidth = 300, bins = 30) +
+  min_theme() +
+  theme(legend.position = c(.9,.85),
+        legend.background = element_rect(colour = "black"),
+        legend.box.background = element_rect(colour = "white"),
+        legend.title = element_blank(),
+        title = element_text(size = 18, face = "bold"),
+         axis.text = element_text(size = 13),
+         axis.title = element_text(size = 16, vjust =  "rt"),
+         plot.margin = margin(30, 30, 30, 30), 
+         panel.spacing =  grid::unit(2, "lines"))+
+  labs(x = "Item Outlet Sales", 
+       y = "Distribution",
+       title = "True Sales vs Predicted Sales Distribution Comparision",
+       subtitle = "Linear Regression Model")+
+      scale_fill_manual(name = '', values = corporate_colors[c(2, 4)], labels = c("True Sales", "Predict Sales") )
+
+
+ggsave("Reports/true_pred.png", width = 9, height = 6, dpi = 300)
+
+
+```
+
+
+```{r}
+baselines <- fread("Data/baselines.csv")
+rank =baselines[, mean(r2), by = .(names)
+          ][order(V1, decreasing = T)][, rank := 1:.N]
+
+baselines$names <- factor(baselines$names, levels = rank$names)
+baselines %>% 
+  ggplot(aes(names, r2)) +
+  geom_boxplot() +
+  min_theme() +
+  theme(title = element_text(size = 18, face = "bold"),
+        axis.text = element_text(size = 13), 
+        plot.caption = element_text(size = 12),
+        axis.title = element_text(size = 16, vjust =  "rt"),
+        plot.margin = margin(30, 30, 30, 30), 
+        panel.spacing =  grid::unit(2, "lines"))+
+  labs(x = "Models", 
+       y = "Coefficient of determination",
+       title = "Six Models Performance Evaluation",
+       caption = "Boxplot resulted from 10 fold cross validation ")
+
+
+
+ggsave("Reports/modelseletion.png", width = 9, height = 6, dpi = 300)
+
+  
+```
+## visual glm features
+
+```{r}
+glm <- fread("Data/glm.csv")
+glm <- glm %>% 
+  melt.data.table(variable.factor = FALSE)
+glm[value > 0.01][order(value, decreasing = T)][1:5] %>% 
+  ggplot(aes(fct_reorder(variable, value),value)) +
+  geom_col(fill = corporate_colors) +
+  coord_flip() +
+  min_theme()+
+  labs(x = "Features", 
+       y = "Coefficient",
+       title = "Top Five Predictors",
+       subtitle = "Generalised Linear Model")+
+      scale_fill_manual(name = '', values = corporate_colors[c(2, 4)], labels = c("True Sales", "Predict Sales") )
+
+
+ggsave("Reports/glmfeatureranks.png", width = 9, height = 6, dpi = 300)
+```
+
+## visual rf grid search 
+
+```{r}
+top10_rf_para <- fread("Data/rf_gridsearch.csv")
+cols <- colnames(top10_rf_para)
+top10_rf_para[, para_combi := paste(bootstrap,max_depth,max_features,n_estimators, sep = "\n")]
+top10_rf_para %>% 
+  ggplot(aes(rank_test_score, mean_test_score)) +
+  geom_line()
+  
+```
+```{r}
+topfeatures <- fread("Data/rf_featureimpt.csv")
+
+topfeatures[value > 0.001] %>% 
+  ggplot(aes(forcats::fct_reorder(V1, value),value)) +
+  geom_col(fill = corporate_colors[c(5, 5:1)]) +
+  coord_flip() +
+  min_theme()+
+  labs(x = "Features", 
+       y = "Importance",
+       title = "Top Six Predictors",
+       subtitle = "Random Forest")
+
+
+
+ggsave("Reports/rffeatureranks.png", width = 9, height = 6, dpi = 300)
+
 ```
 
 ## Why store 10 and 19 are so small on sales? 
