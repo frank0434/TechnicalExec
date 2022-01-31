@@ -8,13 +8,13 @@ output: html_document
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-source("scripts/pkgs.R")
-source("scripts/functions.R")
+source("../scripts/pkgs.R")
+source("../scripts/functions.R")
 
 ```
 
 ```{r}
-data <- fread("Data/cleaned.csv")
+data <- fread("../Data/cleaned.csv")
 
 ```
 
@@ -96,7 +96,7 @@ glmFit1 <- train(Item_Outlet_Sales ~ ., data = train,
                 trControl = fitControl, 
                 preProcess = "center")
 pred_glm <- predict(glmFit1, test)
-saveRDS(glmFit1, "Data/glmfit1")
+saveRDS(glmFit1, "../Data/glmfit1")
 postResample(pred = pred_glm, obs = test$Item_Outlet_Sales)
 
 
@@ -105,7 +105,7 @@ postResample(pred = pred_glm, obs = test$Item_Outlet_Sales)
 #                 trControl = fitControl, 
 #                 preProcess = "center") # extremely slow
 # pred_l1 <- predict(l1Fit1, test)
-# saveRDS(l1Fit1, "Data/l2fit1")
+# saveRDS(l1Fit1, "../Data/l2fit1")
 postResample(pred = pred_l1, obs = test$Item_Outlet_Sales)
 
 ## rf is super slow 
