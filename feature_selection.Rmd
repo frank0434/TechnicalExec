@@ -179,9 +179,6 @@ data %>%
   min_theme()
   
 ```
-```{r}
-lmfit <- lm(Item_)
-```
 
 **Type1 and 2 can be combined into one class. **
 
@@ -318,7 +315,9 @@ ggsave("Reports/rffeatureranks.png", width = 9, height = 6, dpi = 300)
 ```
 
 ## Why store 10 and 19 are so small on sales? 
+
 ```{r}
+data <- fread("Data/cleaned.csv")
 data[Outlet_Type %like% 3 ]
 data[Outlet_Identifier %in% c("OUT010", "OUT019")]$Outlet_Type %>% unique()
 
@@ -339,6 +338,7 @@ unique(data[,.(Outlet_Identifier, Outlet_Establishment_Year, Outlet_Type,
 OUT010 and 019 are Grocery Stores 
 
 ## Does Location affect sales?
+
 ```{r}
 
 popular_store <- data[, sum(Item_Outlet_Sales), by = .(Outlet_Location_Type)]
@@ -454,7 +454,7 @@ data[Item_Outlet_Sales < 100]
 
 ## Boruta pkg can do feature selection 
 
-```{r}
+```{r, eval=FALSE}
 library(Boruta)
 
 boruta_output <- Boruta(Item_Outlet_Sales ~ ., 
@@ -542,7 +542,8 @@ data%>%
 ```{r}
 library(caret)
 set.seed(42)
-rpart <- train(Item_Outlet_Sales ~ log10(Item_MRP) + Outlet_Type, data=na.omit(data), method = "rpart")
+data <- fread("Data/cleaned.csv")
+rpart <- train(Item_Outlet_Sales ~ Item_MRP + Outlet_Type, data=na.omit(data), method = "rpart")
 rpartimp <- varImp(rpart)
 
 rpartimp
@@ -558,29 +559,30 @@ data %>%
 
 ```
 ## Regularized Random Forest (RRF) algorithm.
-```{r}
+```{r, eval=FALSE}
 set.seed(42)
 rrfMod <- train(Item_Outlet_Sales ~ ., data=na.omit(data), method = "rpart")
 rrfImp <- varImp(rrfMod, scale=F)
 rrfImp
 
 ```
-## L1
+## vtreat for better feature engineering 
 
 ```{r}
 library(glmnet)
 library(vtreat) # convert categorical variables 
+library(wrapr)
+#https://cran.r-project.org/web/packages/vtreat/vignettes/vtreat.html
+
 trainData <- read.csv("Data/cleaned.csv")
 trainData$Item_Outlet_Sales <- log(trainData$Item_Outlet_Sales)
+
+
 transform_design <- vtreat::NumericOutcomeTreatment(
     var_list = setdiff(colnames(trainData), c('Item_Outlet_Sales')),  # columns to transform
     outcome_name = 'Item_Outlet_Sales'                        # outcome variable
 )
 
-# the unpack notation is a multiassignment operator
-# see https://winvector.github.io/wrapr/articles/unpack_multiple_assignment.html
-# for more details
-library(wrapr)
 tf  <- vtreat::fit_prepare(transform_design, trainData)
 
 treatment_plan <- tf$treatments
@@ -592,21 +594,8 @@ score_frame <- get_score_frame(treatment_plan)
 score_frame[score_frame[['recommended']], 'varName', drop = FALSE]
 
 
-# d_prepared['Item_Outlet_Sales_centered'] <- d_prepared$Item_Outlet_Sales - mean(d_prepared$Item_Outlet_Sales)
-
-WVPlots::ScatterHist(
-  d_prepared, 
-  xvar = 'Item_Identifier_catN',
-  yvar = 'Item_Outlet_Sales',
-  smoothmethod = 'identity',
-  estimate_sig = TRUE,
-  title = 'Relationship between xc_catN and y')
-
-score_frame[score_frame$varName == 'Item_Identifier_catN', ]$rsq
-
-model_vars <- score_frame$varName[score_frame$recommended]
 # to use all the variables:
-# model_vars <- score_frame$varName
+model_vars <- score_frame$varName
 
 f <- wrapr::mk_formula('Item_Outlet_Sales', model_vars)
 
@@ -618,39 +607,13 @@ d_prepared['prediction'] = predict(
   newdata = d_prepared)
 
 # look at the fit (on the training data)
-WVPlots::ScatterHist(
+p <- WVPlots::ScatterHist(
   d_prepared, 
   xvar = 'prediction',
   yvar = 'Item_Outlet_Sales',
   smoothmethod = 'identity',
   estimate_sig = TRUE,
   title = 'Relationship between prediction and Item_Outlet_Sales')
-
-x <- as.matrix(d_prepared[,-(58:60)]) # all X vars
-y <- log(trainData$Item_Outlet_Sales) # Only Class
-
-# Fit the LASSO model (Lasso: Alpha = 1)
-set.seed(42)
-cv.lasso <- cv.glmnet(x, y, alpha=1, parallel=TRUE, standardize=TRUE, type.measure='auc')
-
-# Results
-plot(cv.lasso)
-cat('Min Lambda: ', cv.lasso$lambda.min, '\n 1Sd Lambda: ', cv.lasso$lambda.1se)
-df_coef <- round(as.matrix(coef(cv.lasso, s=cv.lasso$lambda.min)), 2)
-
-# See all contributing variables
-df_coef[df_coef[, 1] != 0, ]
-```
-## 
-
-```{r}
-library(glmnet)
-library(vtreat) # convert categorical variables 
-trainData <- read.csv("Data/cleaned.csv")
-
-trainData %>% 
-  ggplot(aes(Item_Visibility, Item_Outlet_Sales)) +
-  geom_jitter()
 
 
 ```
