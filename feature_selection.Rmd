@@ -32,6 +32,12 @@ data <- fread("Data/cleaned.csv")
 
 
 item_outlet_sales ~ f(x)
+```{r}
+data[, sum(Item_Outlet_Sales), by = .(Outlet_Identifier, Item_Type)] %>% 
+  ggplot(aes(Outlet_Identifier, V1, fill = Item_Type)) +
+  geom_col()
+```
+
 
 ```{r}
 cate_cols <- sapply(data, function(x) {
